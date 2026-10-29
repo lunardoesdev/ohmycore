@@ -29,13 +29,17 @@ type resp struct {
 }
 
 var (
-	mgrOnce sync.Once
-	mgr     *core.Manager
+	mgrOnce    sync.Once
+	mgr       *core.Manager
+	mgrBaseDir string
 )
 
 func getManager() *core.Manager {
 	mgrOnce.Do(func() {
-		base := os.Getenv("OHMYCORE_BASE_DIR")
+		base := mgrBaseDir
+		if base == "" {
+			base = os.Getenv("OHMYCORE_BASE_DIR")
+		}
 		if base == "" {
 			h, _ := os.UserHomeDir()
 			base = filepath.Join(h, ".ohmycore")
@@ -66,6 +70,16 @@ func CGoInvoke(requestJSON *C.char) *C.char {
 	}
 	m := getManager()
 	switch r.Method {
+	case "init":
+		var p struct {
+			BaseDir string `json:"baseDir"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		if p.BaseDir != "" {
+			mgrBaseDir = p.BaseDir
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: struct{}{}})
+		return C.CString(string(b))
 	case "createInstance":
 		var p struct {
 			Kernel string `json:"kernel"`
