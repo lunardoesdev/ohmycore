@@ -17,7 +17,10 @@ func (m *Manager) RegisterAdapter(kernel Kernel, a Adapter) {
 	defer m.mu.Unlock()
 	m.adapters[kernel] = a
 }
-
+// Adapter returns the registered adapter for a kernel.
+func (m *Manager) Adapter(kernel Kernel) (Adapter, error) {
+	return m.adapter(kernel)
+}
 func (m *Manager) adapter(kernel Kernel) (Adapter, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

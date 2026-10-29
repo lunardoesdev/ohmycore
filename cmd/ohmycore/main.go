@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -28,6 +29,8 @@ func main() {
 	root.PersistentFlags().StringVar(&baseDir, "base-dir", defaultBaseDir(), "base directory")
 	root.AddCommand(instanceCmd())
 	root.AddCommand(linkCmd())
+	root.AddCommand(mihomoCmd())
+	root.AddCommand(xrayCmd())
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -64,35 +67,26 @@ func instanceCmd() *cobra.Command {
 	create.Flags().String("config", "", "config file")
 	cmd.AddCommand(create)
 
-	start := &cobra.Command{
-		Use: "start [id]",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			m := newManager()
-			return m.Start(args[0])
-		},
+	for _, name := range []string{"start", "stop", "remove"} {
+		n := name
+		c := &cobra.Command{
+			Use:  n + " [id]",
+			Args: cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				m := newManager()
+				switch n {
+				case "start":
+					return m.Start(args[0])
+				case "stop":
+					return m.Stop(args[0])
+				case "remove":
+					return m.Remove(args[0])
+				}
+				return nil
+			},
+		}
+		cmd.AddCommand(c)
 	}
-	cmd.AddCommand(start)
-
-	stop := &cobra.Command{
-		Use: "stop [id]",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			m := newManager()
-			return m.Stop(args[0])
-		},
-	}
-	cmd.AddCommand(stop)
-
-	remove := &cobra.Command{
-		Use: "remove [id]",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			m := newManager()
-			return m.Remove(args[0])
-		},
-	}
-	cmd.AddCommand(remove)
 
 	list := &cobra.Command{
 		Use: "list",
@@ -180,4 +174,121 @@ func linkCmd() *cobra.Command {
 	convert.Flags().String("kernel", "xray", "kernel")
 	cmd.AddCommand(convert)
 	return cmd
+}
+
+func mihomoCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "mihomo"}
+	proxies := &cobra.Command{
+		Use: "proxies [id]",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			p, err := a.Proxies(inst)
+			if err != nil {
+				return err
+			}
+			b, _ := json.Marshal(p)
+			fmt.Println(string(b))
+			return nil
+		},
+	}
+	cmd.AddCommand(proxies)
+
+	delay := &cobra.Command{
+		Use: "delay [id] [proxy]",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			urlFlag, _ := cmd.Flags().GetString("url")
+			timeout, _ := cmd.Flags().GetInt("timeout")
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			d, err := a.Delay(inst, args[1], urlFlag, time.Duration(timeout)*time.Millisecond)
+			if err != nil {
+				return err
+			}
+			fmt.Println(d)
+			return nil
+		},
+	}
+	delay.Flags().String("url", "http://www.gstatic.com/generate_204", "test url")
+	delay.Flags().Int("timeout", 5000, "timeout ms")
+	cmd.AddCommand(delay)
+
+	selectCmd := &cobra.Command{
+		Use: "select [id] [group] [proxy]",
+		Args: cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			return a.SelectProxy(inst, args[1], args[2])
+		},
+	}
+	cmd.AddCommand(selectCmd)
+
+	reload := &cobra.Command{
+		Use: "reload-providers [id]",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			return a.ReloadProviders(inst)
+		},
+	}
+	cmd.AddCommand(reload)
+	return cmd
+}
+
+func xrayCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "xray"}
+	ping := &cobra.Command{
+		Use: "ping [id] [outbound]",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("not implemented")
+			return nil
+		},
+	}
+	cmd.AddCommand(ping)
+	return cmd
+}
+
+func mihomoAdapter(m *core.Manager, inst *core.Instance) (*mihomo.Adapter, error) {
+	a, err := m.Adapter(inst.Kernel)
+	if err != nil {
+		return nil, err
+	}
+	ma, ok := a.(*mihomo.Adapter)
+	if !ok {
+		return nil, fmt.Errorf("not mihomo adapter")
+	}
+	return ma, nil
 }

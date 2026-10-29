@@ -33,10 +33,11 @@ var (
 	current *core.Instance
 )
 var speedTestMu sync.Mutex
+// removed duplicate
 
-type adapter struct{}
+type Adapter struct{}
 
-func New() core.Adapter { return &adapter{} }
+func New() core.Adapter { return &Adapter{} }
 
 func freePort() (int, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -47,7 +48,7 @@ func freePort() (int, error) {
 	return ln.Addr().(*net.TCPAddr).Port, nil
 }
 
-func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
+func (a *Adapter) Start(inst *core.Instance, cfg []byte) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if current != nil {
@@ -73,7 +74,7 @@ func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
 	return nil
 }
 
-func (a *adapter) Stop(inst *core.Instance) error {
+func (a *Adapter) Stop(inst *core.Instance) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if current != inst {
@@ -87,7 +88,7 @@ func (a *adapter) Stop(inst *core.Instance) error {
 	return nil
 }
 
-func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
+func (a *Adapter) Reload(inst *core.Instance, cfg []byte) error {
 	if err := hub.Parse(cfg); err != nil {
 		return err
 	}
@@ -99,9 +100,9 @@ func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
 	return nil
 }
 
-func (a *adapter) Version() string { return "mihomo" }
+func (a *Adapter) Version() string { return "mihomo" }
 
-func (a *adapter) do(inst *core.Instance, method, path string, body any) (*http.Response, error) {
+func (a *Adapter) do(inst *core.Instance, method, path string, body any) (*http.Response, error) {
 	inst.Mu.RLock()
 	h, _ := inst.Handle.(*handle)
 	inst.Mu.RUnlock()
@@ -126,7 +127,7 @@ func (a *adapter) do(inst *core.Instance, method, path string, body any) (*http.
 	return http.DefaultClient.Do(r)
 }
 
-func (a *adapter) Proxies(inst *core.Instance) (map[string]any, error) {
+func (a *Adapter) Proxies(inst *core.Instance) (map[string]any, error) {
 	resp, err := a.do(inst, "GET", "/proxies", nil)
 	if err != nil {
 		return nil, err
@@ -137,7 +138,7 @@ func (a *adapter) Proxies(inst *core.Instance) (map[string]any, error) {
 	return out, nil
 }
 
-func (a *adapter) Delay(inst *core.Instance, name, testURL string, timeout time.Duration) (int, error) {
+func (a *Adapter) Delay(inst *core.Instance, name, testURL string, timeout time.Duration) (int, error) {
 	resp, err := a.do(inst, "GET", fmt.Sprintf("/proxies/%s/delay?url=%s&timeout=%d", name, testURL, timeout.Milliseconds()), nil)
 	if err != nil {
 		return 0, err
@@ -150,7 +151,7 @@ func (a *adapter) Delay(inst *core.Instance, name, testURL string, timeout time.
 	return out.Delay, nil
 }
 
-func (a *adapter) SelectProxy(inst *core.Instance, group, name string) error {
+func (a *Adapter) SelectProxy(inst *core.Instance, group, name string) error {
 	resp, err := a.do(inst, "PUT", "/proxies/"+group, map[string]string{"name": name})
 	if err != nil {
 		return err
@@ -162,7 +163,7 @@ func (a *adapter) SelectProxy(inst *core.Instance, group, name string) error {
 	return nil
 }
 
-func (a *adapter) PatchConfig(inst *core.Instance, patch map[string]any) error {
+func (a *Adapter) PatchConfig(inst *core.Instance, patch map[string]any) error {
 	resp, err := a.do(inst, "PATCH", "/configs", patch)
 	if err != nil {
 		return err
@@ -174,7 +175,7 @@ func (a *adapter) PatchConfig(inst *core.Instance, patch map[string]any) error {
 	return nil
 }
 
-func (a *adapter) ReloadProviders(inst *core.Instance) error {
+func (a *Adapter) ReloadProviders(inst *core.Instance) error {
 	resp, err := a.do(inst, "GET", "/providers/proxies", nil)
 	if err != nil {
 		return err
@@ -193,7 +194,7 @@ func (a *adapter) ReloadProviders(inst *core.Instance) error {
 	return nil
 }
 
-func (a *adapter) SpeedTest(ctx context.Context, inst *core.Instance, proxyName string, downloadURL string, maxBytes int64, duration time.Duration) (float64, error) {
+func (a *Adapter) SpeedTest(ctx context.Context, inst *core.Instance, proxyName string, downloadURL string, maxBytes int64, duration time.Duration) (float64, error) {
 	speedTestMu.Lock()
 	defer speedTestMu.Unlock()
 	inst.Mu.RLock()
