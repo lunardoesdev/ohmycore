@@ -6,9 +6,9 @@ import (
 	_ "github.com/xtls/xray-core/main/json"
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	xcore "github.com/xtls/xray-core/core"
@@ -82,7 +82,35 @@ func (a *Adapter) SpeedTest(ctx context.Context, cfg []byte, outboundTag, downlo
 		return 0, err
 	}
 	defer srv.Close()
-	return 0, fmt.Errorf("not implemented")
+	proxyURL, _ := url.Parse("socks5://127.0.0.1:10808")
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}, Timeout: duration}
+	req, _ := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	start := time.Now()
+	var total int64
+	buf := make([]byte, 32*1024)
+	for {
+		if time.Since(start) >= duration {
+			break
+		}
+		n, rerr := resp.Body.Read(buf)
+		total += int64(n)
+		if rerr != nil {
+			if rerr == io.EOF {
+				break
+			}
+			return 0, rerr
+		}
+	}
+	elapsed := time.Since(start).Seconds()
+	if elapsed <= 0 {
+		return 0, nil
+	}
+	return float64(total) / elapsed, nil
 }
 
 func tempInstance(cfg []byte) (*xcore.Instance, error) {
