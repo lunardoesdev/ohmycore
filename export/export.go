@@ -415,6 +415,59 @@ func CGoInvoke(requestJSON *C.char) *C.char {
 		}
 		b, _ := json.Marshal(resp{Success: true, Data: string(cfg)})
 		return C.CString(string(b))
+	case "resolveLink":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		ls := core.NewLinkService(m)
+		res, err := ls.Resolve(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: res})
+		return C.CString(string(b))
+	case "importLink":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		ls := core.NewLinkService(m)
+		id, err := ls.Import(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: map[string]string{"id": id}})
+		return C.CString(string(b))
+	case "testLink":
+		var p struct {
+			Link    string `json:"link"`
+			TestURL string `json:"testUrl"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		ls := core.NewLinkService(m)
+		ms, err := ls.Test(p.Link, p.TestURL)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: map[string]int{"ms": ms}})
+		return C.CString(string(b))
+	case "activateLink":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		ls := core.NewLinkService(m)
+		id, err := ls.Activate(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: map[string]string{"id": id}})
+		return C.CString(string(b))
 	case "version":
 		b, _ := json.Marshal(resp{Success: true, Data: map[string]string{"xray": xray.New().Version(), "mihomo": "mihomo"}})
 		return C.CString(string(b))
