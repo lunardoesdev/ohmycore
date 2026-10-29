@@ -97,7 +97,6 @@ m.RegisterAdapter(core.KernelMihomo, mihomo.New())
 Persistence: each instance has `baseDir/instances/<id>/config.json` (Xray)
 or `config.yaml` (Mihomo), plus a `status` file. Instances are loaded from
 disk on `NewManager`.
-### Method reference
 
 All methods accept `{"apiVersion":3,"method":"...","payload":{...}}`.
 
@@ -116,6 +115,9 @@ All methods accept `{"apiVersion":3,"method":"...","payload":{...}}`.
 | `mihomoDelay` | `id`, `proxy`, `url`, `timeout` (ms) | `{delay}` |
 | `mihomoSpeedTest` | `id`, `proxy`, `downloadUrl`, `maxBytes`, `duration` (ms) | `{bytesPerSec}` |
 | `mihomoSelect` | `id`, `group`, `proxy` | `{}` |
+| `mihomoAddProxy` | `id`, `proxy` (object) | `{}` |
+| `mihomoRemoveProxy` | `id`, `name` | `{}` |
+| `mihomoUpdateProxy` | `id`, `name`, `proxy` (object) | `{}` |
 | `mihomoPatchConfig` | `id`, `patch` (object) | `{}` |
 | `mihomoReloadProviders` | `id` | `{}` |
 | `checkXrayLinkSupport` | `link` | `{supported, scheme, reason?}` |
