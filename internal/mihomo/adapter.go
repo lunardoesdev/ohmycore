@@ -67,9 +67,7 @@ func (a *Adapter) Start(inst *core.Instance, cfg []byte) error {
 	if err := hub.Parse(cfg, hub.WithExternalController(fmt.Sprintf("127.0.0.1:%d", port)), hub.WithSecret(secret)); err != nil {
 		return err
 	}
-	inst.Mu.Lock()
 	inst.Handle = &handle{controllerURL: fmt.Sprintf("http://127.0.0.1:%d", port), secret: secret, port: port, config: cfg}
-	inst.Mu.Unlock()
 	current = inst
 	return nil
 }
@@ -82,9 +80,7 @@ func (a *Adapter) Stop(inst *core.Instance) error {
 	}
 	executor.Shutdown()
 	current = nil
-	inst.Mu.Lock()
 	inst.Handle = nil
-	inst.Mu.Unlock()
 	return nil
 }
 
@@ -92,20 +88,16 @@ func (a *Adapter) Reload(inst *core.Instance, cfg []byte) error {
 	if err := hub.Parse(cfg); err != nil {
 		return err
 	}
-	inst.Mu.Lock()
 	if h, ok := inst.Handle.(*handle); ok {
 		h.config = cfg
 	}
-	inst.Mu.Unlock()
 	return nil
 }
 
 func (a *Adapter) Version() string { return "mihomo" }
 
 func (a *Adapter) do(inst *core.Instance, method, path string, body any) (*http.Response, error) {
-	inst.Mu.RLock()
 	h, _ := inst.Handle.(*handle)
-	inst.Mu.RUnlock()
 	if h == nil {
 		return nil, core.ErrNotRunning
 	}
@@ -197,9 +189,7 @@ func (a *Adapter) ReloadProviders(inst *core.Instance) error {
 func (a *Adapter) SpeedTest(ctx context.Context, inst *core.Instance, proxyName string, downloadURL string, maxBytes int64, duration time.Duration) (float64, error) {
 	speedTestMu.Lock()
 	defer speedTestMu.Unlock()
-	inst.Mu.RLock()
 	h, _ := inst.Handle.(*handle)
-	inst.Mu.RUnlock()
 	if h == nil {
 		return 0, core.ErrNotRunning
 	}

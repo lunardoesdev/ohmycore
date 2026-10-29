@@ -35,6 +35,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
 func defaultBaseDir() string {
@@ -60,6 +61,7 @@ func instanceCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println(inst.ID)
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -76,11 +78,21 @@ func instanceCmd() *cobra.Command {
 				m := newManager()
 				switch n {
 				case "start":
-					return m.Start(args[0])
+					if err := m.Start(args[0]); err != nil {
+						return err
+					}
+					fmt.Println("START_DONE")
+					os.Exit(0)
 				case "stop":
-					return m.Stop(args[0])
+					if err := m.Stop(args[0]); err != nil {
+						return err
+					}
+					os.Exit(0)
 				case "remove":
-					return m.Remove(args[0])
+					if err := m.Remove(args[0]); err != nil {
+						return err
+					}
+					os.Exit(0)
 				}
 				return nil
 			},
@@ -96,6 +108,7 @@ func instanceCmd() *cobra.Command {
 				b, _ := json.Marshal(inst)
 				fmt.Println(string(b))
 			}
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -112,6 +125,7 @@ func instanceCmd() *cobra.Command {
 			}
 			b, _ := json.Marshal(inst)
 			fmt.Println(string(b))
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -143,6 +157,7 @@ func linkCmd() *cobra.Command {
 				b, _ := json.Marshal(r)
 				fmt.Println("mihomo:", string(b))
 			}
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -168,6 +183,7 @@ func linkCmd() *cobra.Command {
 				}
 				fmt.Println(string(b))
 			}
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -197,6 +213,7 @@ func mihomoCmd() *cobra.Command {
 			}
 			b, _ := json.Marshal(p)
 			fmt.Println(string(b))
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -222,6 +239,7 @@ func mihomoCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println(d)
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -242,7 +260,11 @@ func mihomoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.SelectProxy(inst, args[1], args[2])
+			if err := a.SelectProxy(inst, args[1], args[2]); err != nil {
+				return err
+			}
+			os.Exit(0)
+			return nil
 		},
 	}
 	cmd.AddCommand(selectCmd)
@@ -260,7 +282,11 @@ func mihomoCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.ReloadProviders(inst)
+			if err := a.ReloadProviders(inst); err != nil {
+				return err
+			}
+			os.Exit(0)
+			return nil
 		},
 	}
 	cmd.AddCommand(reload)
@@ -274,6 +300,7 @@ func xrayCmd() *cobra.Command {
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("not implemented")
+			os.Exit(0)
 			return nil
 		},
 	}
@@ -291,4 +318,5 @@ func mihomoAdapter(m *core.Manager, inst *core.Instance) (*mihomo.Adapter, error
 		return nil, fmt.Errorf("not mihomo adapter")
 	}
 	return ma, nil
+// removed duplicate
 }

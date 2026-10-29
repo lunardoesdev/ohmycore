@@ -62,11 +62,13 @@ type Manager struct {
 
 // NewManager creates a manager rooted at baseDir.
 func NewManager(baseDir string) *Manager {
-	return &Manager{
+	m := &Manager{
 		baseDir:   baseDir,
 		instances: make(map[string]*Instance),
 		adapters:  make(map[Kernel]Adapter),
 	}
+	m.loadInstances()
+	return m
 }
 
 // Adapter abstracts a backend implementation.

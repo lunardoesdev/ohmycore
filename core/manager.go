@@ -30,6 +30,40 @@ func (m *Manager) adapter(kernel Kernel) (Adapter, error) {
 	}
 	return a, nil
 }
+func (m *Manager) loadInstances() {
+	entries, err := os.ReadDir(filepath.Join(m.baseDir, "instances"))
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		id := e.Name()
+		inst := &Instance{ID: id, Status: StatusStopped, WorkDir: filepath.Join(m.baseDir, "instances", id)}
+		if _, err := os.Stat(filepath.Join(inst.WorkDir, "config.yaml")); err == nil {
+			inst.Kernel = KernelMihomo
+		} else {
+			inst.Kernel = KernelXray
+		}
+		inst.Status = readStatus(inst)
+		m.instances[id] = inst
+	}
+}
+
+func statusPath(inst *Instance) string { return filepath.Join(inst.WorkDir, "status") }
+
+func writeStatus(inst *Instance, s Status) {
+	_ = os.WriteFile(statusPath(inst), []byte(s), 0o600)
+}
+
+func readStatus(inst *Instance) Status {
+	b, err := os.ReadFile(statusPath(inst))
+	if err != nil {
+		return StatusCreated
+	}
+	return Status(string(b))
+}
 
 // Create allocates a new instance and persists its config.
 func (m *Manager) Create(kernel Kernel, config []byte) (*Instance, error) {
@@ -85,6 +119,7 @@ func (m *Manager) List() []*Instance {
 
 // Start starts an instance.
 func (m *Manager) Start(id string) error {
+	fmt.Println("MANAGER_START_BEGIN")
 	inst, err := m.Get(id)
 	if err != nil {
 		return err
@@ -110,6 +145,7 @@ func (m *Manager) Start(id string) error {
 	}
 	inst.Status = StatusRunning
 	inst.StartedAt = time.Now()
+	writeStatus(inst, StatusRunning)
 	inst.LastError = ""
 	return nil
 }
@@ -136,6 +172,7 @@ func (m *Manager) Stop(id string) error {
 	}
 	inst.Status = StatusStopped
 	inst.LastError = ""
+	writeStatus(inst, StatusStopped)
 	return nil
 }
 

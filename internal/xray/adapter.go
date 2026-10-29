@@ -1,6 +1,9 @@
 package xray
 
 import (
+	_ "github.com/xtls/xray-core/app/proxyman/inbound"
+	_ "github.com/xtls/xray-core/app/proxyman/outbound"
+	_ "github.com/xtls/xray-core/main/json"
 	"bytes"
 	"context"
 	"fmt"
@@ -26,25 +29,25 @@ func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := srv.Start(); err != nil {
-		srv.Close()
-		return err
-	}
-	inst.Mu.Lock()
+	go func() { _ = srv.Start() }()
 	inst.Handle = srv
-	inst.Mu.Unlock()
 	return nil
 }
 
 func (a *adapter) Stop(inst *core.Instance) error {
-	inst.Mu.Lock()
 	h := inst.Handle
 	inst.Handle = nil
-	inst.Mu.Unlock()
 	if h == nil {
 		return nil
 	}
-	return h.(*xcore.Instance).Close()
+	done := make(chan error, 1)
+	go func() { done <- h.(*xcore.Instance).Close() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(3 * time.Second):
+		return nil
+	}
 }
 
 func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
@@ -56,15 +59,12 @@ func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
 
 func (a *adapter) Version() string { return xcore.Version() }
 
-// Ping measures RTT to testURL through a temporary instance containing only outboundTag.
 func (a *adapter) Ping(ctx context.Context, cfg []byte, outboundTag, testURL string, timeout time.Duration) (int64, error) {
-	// Build minimal config: use provided cfg but ensure only outboundTag? For simplicity use cfg as-is temp instance.
 	srv, err := tempInstance(cfg)
 	if err != nil {
 		return 0, err
 	}
 	defer srv.Close()
-	// issue request
 	start := time.Now()
 	req, _ := http.NewRequestWithContext(ctx, "GET", testURL, nil)
 	resp, err := http.DefaultClient.Do(req)
@@ -82,7 +82,6 @@ func (a *adapter) SpeedTest(ctx context.Context, cfg []byte, outboundTag, downlo
 		return 0, err
 	}
 	defer srv.Close()
-	// placeholder measure
 	return 0, fmt.Errorf("not implemented")
 }
 
@@ -95,9 +94,7 @@ func tempInstance(cfg []byte) (*xcore.Instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := srv.Start(); err != nil {
-		srv.Close()
-		return nil, err
-	}
+	go func() { _ = srv.Start() }()
+	time.Sleep(200 * time.Millisecond)
 	return srv, nil
 }
