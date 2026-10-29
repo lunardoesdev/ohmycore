@@ -138,6 +138,10 @@ All methods accept `{"apiVersion":3,"method":"...","payload":{...}}`.
 | `mihomoAddProxy` | `id`, `proxy` (object) | `{}` |
 | `mihomoRemoveProxy` | `id`, `name` | `{}` |
 | `mihomoUpdateProxy` | `id`, `name`, `proxy` (object) | `{}` |
+| `resolveLink` | `link` | `{Kernel, Node, Support}` |
+| `importLink` | `link` | `{id}` |
+| `testLink` | `link`, `testUrl` | `{ms}` |
+| `activateLink` | `link` | `{id}` |
 | `mihomoPatchConfig` | `id`, `patch` (object) | `{}` |
 | `mihomoReloadProviders` | `id` | `{}` |
 | `checkXrayLinkSupport` | `link` | `{supported, scheme, reason?}` |
