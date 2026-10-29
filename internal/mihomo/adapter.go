@@ -1,5 +1,4 @@
 package mihomo
-
 import (
 	"bytes"
 	"context"
@@ -8,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -16,20 +16,23 @@ import (
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/listener"
+	"github.com/metacubex/mihomo/tunnel"
 
 	"ohmycore/core"
 )
 
 type handle struct {
 	controllerURL string
-	secret        string
 	port          int
+	secret        string
+	config        []byte
 }
 
 var (
 	mu      sync.Mutex
 	current *core.Instance
 )
+var speedTestMu sync.Mutex
 
 type adapter struct{}
 
@@ -64,7 +67,7 @@ func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
 		return err
 	}
 	inst.Mu.Lock()
-	inst.Handle = &handle{controllerURL: fmt.Sprintf("http://127.0.0.1:%d", port), secret: secret, port: port}
+	inst.Handle = &handle{controllerURL: fmt.Sprintf("http://127.0.0.1:%d", port), secret: secret, port: port, config: cfg}
 	inst.Mu.Unlock()
 	current = inst
 	return nil
@@ -88,6 +91,11 @@ func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
 	if err := hub.Parse(cfg); err != nil {
 		return err
 	}
+	inst.Mu.Lock()
+	if h, ok := inst.Handle.(*handle); ok {
+		h.config = cfg
+	}
+	inst.Mu.Unlock()
 	return nil
 }
 
@@ -186,8 +194,84 @@ func (a *adapter) ReloadProviders(inst *core.Instance) error {
 }
 
 func (a *adapter) SpeedTest(ctx context.Context, inst *core.Instance, proxyName string, downloadURL string, maxBytes int64, duration time.Duration) (float64, error) {
-	// placeholder: implement pinned listener later
-	return 0, fmt.Errorf("not implemented")
+	speedTestMu.Lock()
+	defer speedTestMu.Unlock()
+	inst.Mu.RLock()
+	h, _ := inst.Handle.(*handle)
+	inst.Mu.RUnlock()
+	if h == nil {
+		return 0, core.ErrNotRunning
+	}
+	cfg, err := executor.ParseWithBytes(h.config)
+	if err != nil {
+		return 0, err
+	}
+	tempPort, err := freePort()
+	if err != nil {
+		return 0, err
+	}
+	temp, err := listener.ParseListener(map[string]any{
+		"name":   "ohmycore-speedtest",
+		"type":   "http",
+		"listen": "127.0.0.1",
+		"port":   tempPort,
+		"proxy":  proxyName,
+	})
+	if err != nil {
+		return 0, err
+	}
+	original := make(map[string]C.InboundListener, len(cfg.Listeners))
+	for k, v := range cfg.Listeners {
+		original[k] = v
+	}
+	combined := make(map[string]C.InboundListener, len(cfg.Listeners)+1)
+	for k, v := range cfg.Listeners {
+		combined[k] = v
+	}
+	combined[temp.Name()] = temp
+	listener.PatchInboundListeners(combined, tunnel.Tunnel, true)
+	defer listener.PatchInboundListeners(original, tunnel.Tunnel, true)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", tempPort), 200*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	proxyURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", tempPort))
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}, Timeout: duration}
+	req, _ := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	start := time.Now()
+	var total int64
+	buf := make([]byte, 32*1024)
+	for {
+		if maxBytes > 0 && total >= maxBytes {
+			break
+		}
+		if time.Since(start) >= duration {
+			break
+		}
+		n, rerr := resp.Body.Read(buf)
+		total += int64(n)
+		if rerr != nil {
+			if rerr == io.EOF {
+				break
+			}
+			return 0, rerr
+		}
+	}
+	elapsed := time.Since(start).Seconds()
+	if elapsed <= 0 {
+		return 0, nil
+	}
+	return float64(total) / elapsed, nil
 }
 
 var _ = listener.PatchInboundListeners
