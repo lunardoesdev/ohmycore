@@ -97,11 +97,11 @@ m.RegisterAdapter(core.KernelMihomo, mihomo.New())
 Persistence: each instance has `baseDir/instances/<id>/config.json` (Xray)
 or `config.yaml` (Mihomo), plus a `status` file. Instances are loaded from
 disk on `NewManager`.
-
 All methods accept `{"apiVersion":3,"method":"...","payload":{...}}`.
 
 | Method | Payload fields | Response `data` |
 |---|---|---|
+| `init` | `baseDir` (optional) | `{}` |
 | `createInstance` | `kernel` (xray/mihomo), `config` (string) | `{id, kernel, status, work_dir, ...}` |
 | `startInstance` | `id` | `{}` |
 | `stopInstance` | `id` | `{}` |
