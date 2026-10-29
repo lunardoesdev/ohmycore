@@ -10,6 +10,8 @@ import "C"
 import (
 	"encoding/json"
 	"unsafe"
+
+	"ohmycore/internal/links"
 )
 
 type resp struct {
@@ -34,8 +36,59 @@ func CGoInvoke(requestJSON *C.char) *C.char {
 		b, _ := json.Marshal(resp{Success: false, Error: "unsupported apiVersion"})
 		return C.CString(string(b))
 	}
-	b, _ := json.Marshal(resp{Success: true, Data: map[string]string{"method": r.Method}})
-	return C.CString(string(b))
+	switch r.Method {
+	case "checkXrayLinkSupport":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		res, err := links.CheckXrayLinkSupport(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: res})
+		return C.CString(string(b))
+	case "checkMihomoLinkSupport":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		res, err := links.CheckMihomoLinkSupport(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: res})
+		return C.CString(string(b))
+	case "linkToXrayConfig":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		cfg, err := links.LinkToXrayConfig(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: string(cfg)})
+		return C.CString(string(b))
+	case "linkToMihomoConfig":
+		var p struct {
+			Link string `json:"link"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		cfg, err := links.LinkToMihomoConfig(p.Link)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: string(cfg)})
+		return C.CString(string(b))
+	default:
+		b, _ := json.Marshal(resp{Success: true, Data: map[string]string{"method": r.Method}})
+		return C.CString(string(b))
+	}
 }
 
 //export CGoFree
