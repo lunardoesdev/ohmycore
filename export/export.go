@@ -277,6 +277,64 @@ func CGoInvoke(requestJSON *C.char) *C.char {
 		}
 		b, _ := json.Marshal(resp{Success: true, Data: struct{}{}})
 		return C.CString(string(b))
+	case "mihomoAddProxy":
+		var p struct {
+			ID    string         `json:"id"`
+			Proxy map[string]any `json:"proxy"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		inst, err := m.Get(p.ID)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		a, _ := m.Adapter(core.KernelMihomo)
+		ma := a.(*mihomo.Adapter)
+		if err := ma.AddProxy(inst, p.Proxy); err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: struct{}{}})
+		return C.CString(string(b))
+	case "mihomoRemoveProxy":
+		var p struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		inst, err := m.Get(p.ID)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		a, _ := m.Adapter(core.KernelMihomo)
+		ma := a.(*mihomo.Adapter)
+		if err := ma.RemoveProxy(inst, p.Name); err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: struct{}{}})
+		return C.CString(string(b))
+	case "mihomoUpdateProxy":
+		var p struct {
+			ID    string         `json:"id"`
+			Name  string         `json:"name"`
+			Proxy map[string]any `json:"proxy"`
+		}
+		json.Unmarshal(r.Payload, &p)
+		inst, err := m.Get(p.ID)
+		if err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		a, _ := m.Adapter(core.KernelMihomo)
+		ma := a.(*mihomo.Adapter)
+		if err := ma.UpdateProxy(inst, p.Name, p.Proxy); err != nil {
+			b, _ := json.Marshal(resp{Success: false, Error: err.Error()})
+			return C.CString(string(b))
+		}
+		b, _ := json.Marshal(resp{Success: true, Data: struct{}{}})
+		return C.CString(string(b))
 	case "mihomoReloadProviders":
 		var p struct {
 			ID string `json:"id"`

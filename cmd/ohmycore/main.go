@@ -290,6 +290,55 @@ func mihomoCmd() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(reload)
+
+	addProxy := &cobra.Command{
+		Use: "add-proxy [id] [json]",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			var proxy map[string]any
+			if err := json.Unmarshal([]byte(args[1]), &proxy); err != nil {
+				return err
+			}
+			if err := a.AddProxy(inst, proxy); err != nil {
+				return err
+			}
+			os.Exit(0)
+			return nil
+		},
+	}
+	cmd.AddCommand(addProxy)
+
+	removeProxy := &cobra.Command{
+		Use: "remove-proxy [id] [name]",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := newManager()
+			inst, err := m.Get(args[0])
+			if err != nil {
+				return err
+			}
+			a, err := mihomoAdapter(m, inst)
+			if err != nil {
+				return err
+			}
+			if err := a.RemoveProxy(inst, args[1]); err != nil {
+				return err
+			}
+			os.Exit(0)
+			return nil
+		},
+	}
+	cmd.AddCommand(removeProxy)
+
 	return cmd
 }
 
