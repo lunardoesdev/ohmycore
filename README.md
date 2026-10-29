@@ -97,7 +97,39 @@ m.RegisterAdapter(core.KernelMihomo, mihomo.New())
 Persistence: each instance has `baseDir/instances/<id>/config.json` (Xray)
 or `config.yaml` (Mihomo), plus a `status` file. Instances are loaded from
 disk on `NewManager`.
+### Method reference
 
+All methods accept `{"apiVersion":3,"method":"...","payload":{...}}`.
+
+| Method | Payload fields | Response `data` |
+|---|---|---|
+| `createInstance` | `kernel` (xray/mihomo), `config` (string) | `{id, kernel, status, work_dir, ...}` |
+| `startInstance` | `id` | `{}` |
+| `stopInstance` | `id` | `{}` |
+| `removeInstance` | `id` | `{}` |
+| `listInstances` | (none) | `[{id, kernel, status, ...}, ...]` |
+| `getInstance` | `id` | `{id, kernel, status, ...}` |
+| `reloadConfig` | `id`, `config` | `{}` |
+| `xrayPing` | `config`, `outboundTag`, `url`, `timeout` (ms) | `{ms}` |
+| `xraySpeedTest` | `config`, `outboundTag`, `downloadUrl`, `duration` (ms) | `{bytesPerSec}` |
+| `mihomoProxies` | `id` | `{proxies: {...}}` |
+| `mihomoDelay` | `id`, `proxy`, `url`, `timeout` (ms) | `{delay}` |
+| `mihomoSpeedTest` | `id`, `proxy`, `downloadUrl`, `maxBytes`, `duration` (ms) | `{bytesPerSec}` |
+| `mihomoSelect` | `id`, `group`, `proxy` | `{}` |
+| `mihomoPatchConfig` | `id`, `patch` (object) | `{}` |
+| `mihomoReloadProviders` | `id` | `{}` |
+| `checkXrayLinkSupport` | `link` | `{supported, scheme, reason?}` |
+| `checkMihomoLinkSupport` | `link` | `{supported, scheme, reason?}` |
+| `linkToXrayConfig` | `link` | config JSON string |
+| `linkToMihomoConfig` | `link` | config YAML string |
+| `version` | (none) | `{xray, mihomo}` |
+
+Notes:
+- `createInstance` stores config bytes; `startInstance` reads from disk.
+- `mihomoSpeedTest` requires `maxBytes` and `duration`; it uses a temporary
+  loopback HTTP inbound pinned to `proxy` and does not change selection.
+- `check*LinkSupport` is a local compatibility check, not a reachability test.
+- `linkTo*Config` converts a single link; subscriptions are handled by CLI.
 ### Mihomo Runtime Management
 
 Mihomo keeps process-global state, so only one core runs per process. Additional
