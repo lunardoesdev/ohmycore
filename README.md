@@ -83,6 +83,26 @@ export/            JSON dispatcher and cgo exports
 testdata/          fixtures
 ```
 
+### Data-oriented link API
+
+`core.LinkService` makes links the primary object. Xray is preferred when both
+backends support a link:
+
+```go
+ls := core.NewLinkService(m)
+res, _ := ls.Resolve(link)   // {Kernel, Node, Support}
+id, _ := ls.Import(link)     // creates/updates instance
+ms, _ := ls.Test(link, url)  // ping without changing selection
+id, _ = ls.Activate(link)    // import + select as current proxy
+```
+
+### In-memory manager
+
+```go
+m := core.NewMemoryManager() // no disk, configs kept in memory
+m := core.NewManagerWithOptions(baseDir, true) // in-memory mode
+```
+
 ### Manager
 
 `core.Manager` is the single public implementation. It owns instance records,
