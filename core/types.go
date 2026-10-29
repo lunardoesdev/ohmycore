@@ -52,23 +52,35 @@ type Node struct {
 	Extra     map[string]any `json:"extra,omitempty"`
 }
 
-// Manager coordinates instances.
 type Manager struct {
 	baseDir   string
+	inMemory  bool
 	mu        sync.RWMutex
 	instances map[string]*Instance
+	configs   map[string][]byte
 	adapters  map[Kernel]Adapter
 }
-
 // NewManager creates a manager rooted at baseDir.
 func NewManager(baseDir string) *Manager {
+	return NewManagerWithOptions(baseDir, false)
+}
+
+func NewManagerWithOptions(baseDir string, inMemory bool) *Manager {
 	m := &Manager{
 		baseDir:   baseDir,
+		inMemory:  inMemory,
 		instances: make(map[string]*Instance),
 		adapters:  make(map[Kernel]Adapter),
+		configs:   make(map[string][]byte),
 	}
-	m.loadInstances()
+	if !inMemory {
+		m.loadInstances()
+	}
 	return m
+}
+
+func NewMemoryManager() *Manager {
+	return NewManagerWithOptions("", true)
 }
 
 // Adapter abstracts a backend implementation.

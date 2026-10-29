@@ -76,21 +76,28 @@ func (m *Manager) Create(kernel Kernel, config []byte) (*Instance, error) {
 		Kernel: kernel,
 		Status: StatusCreated,
 	}
-	inst.WorkDir = filepath.Join(m.baseDir, "instances", id)
-	if err := os.MkdirAll(inst.WorkDir, 0o700); err != nil {
-		return nil, err
-	}
-	ext := "json"
-	if kernel == KernelMihomo {
-		ext = "yaml"
-	}
-	cfgPath := filepath.Join(inst.WorkDir, "config."+ext)
-	if err := os.WriteFile(cfgPath, config, 0o600); err != nil {
-		os.RemoveAll(inst.WorkDir)
-		return nil, err
+	if !m.inMemory {
+		inst.WorkDir = filepath.Join(m.baseDir, "instances", id)
+		if err := os.MkdirAll(inst.WorkDir, 0o700); err != nil {
+			return nil, err
+		}
+		ext := "json"
+		if kernel == KernelMihomo {
+			ext = "yaml"
+		}
+		cfgPath := filepath.Join(inst.WorkDir, "config."+ext)
+		if err := os.WriteFile(cfgPath, config, 0o600); err != nil {
+			os.RemoveAll(inst.WorkDir)
+			return nil, err
+		}
+	} else {
+		inst.WorkDir = ""
 	}
 	m.mu.Lock()
 	m.instances[id] = inst
+	if m.inMemory {
+		m.configs[id] = append([]byte(nil), config...)
+	}
 	m.mu.Unlock()
 	return inst, nil
 }
@@ -133,10 +140,21 @@ func (m *Manager) Start(id string) error {
 	if err != nil {
 		return err
 	}
-	cfgPath := configPath(inst)
-	cfg, err := os.ReadFile(cfgPath)
-	if err != nil {
-		return err
+	var cfg []byte
+	// cfg declared above
+	if m.inMemory {
+		m.mu.RLock()
+		cfg = m.configs[id]
+		m.mu.RUnlock()
+		if cfg == nil {
+			return fmt.Errorf("config not found")
+		}
+	} else {
+		cfgPath := configPath(inst)
+		cfg, err = os.ReadFile(cfgPath)
+		if err != nil {
+			return err
+		}
 	}
 	if err := a.Start(inst, cfg); err != nil {
 		inst.Status = StatusError
@@ -189,9 +207,16 @@ func (m *Manager) Reload(id string, config []byte) error {
 		ext = "yaml"
 	}
 	cfgPath := filepath.Join(inst.WorkDir, "config."+ext)
-	if err := os.WriteFile(cfgPath, config, 0o600); err != nil {
-		return err
+	if !m.inMemory {
+		if err := os.WriteFile(cfgPath, config, 0o600); err != nil {
+			return err
+		}
 	}
+	m.mu.Lock()
+	if m.inMemory {
+		m.configs[id] = append([]byte(nil), config...)
+	}
+	m.mu.Unlock()
 	a, err := m.adapter(inst.Kernel)
 	if err != nil {
 		return err
@@ -223,7 +248,13 @@ func (m *Manager) Remove(id string) error {
 	inst.Mu.Unlock()
 	m.mu.Lock()
 	delete(m.instances, id)
+	if m.inMemory {
+		delete(m.configs, id)
+	}
 	m.mu.Unlock()
+	if m.inMemory {
+		return nil
+	}
 	return os.RemoveAll(inst.WorkDir)
 }
 
