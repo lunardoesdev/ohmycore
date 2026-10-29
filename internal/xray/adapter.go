@@ -16,11 +16,11 @@ import (
 	"ohmycore/core"
 )
 
-type adapter struct{}
+type Adapter struct{}
 
-func New() core.Adapter { return &adapter{} }
+func New() core.Adapter { return &Adapter{} }
 
-func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
+func (a *Adapter) Start(inst *core.Instance, cfg []byte) error {
 	c, err := xcore.LoadConfig("json", bytes.NewReader(cfg))
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func (a *adapter) Start(inst *core.Instance, cfg []byte) error {
 	return nil
 }
 
-func (a *adapter) Stop(inst *core.Instance) error {
+func (a *Adapter) Stop(inst *core.Instance) error {
 	h := inst.Handle
 	inst.Handle = nil
 	if h == nil {
@@ -50,16 +50,16 @@ func (a *adapter) Stop(inst *core.Instance) error {
 	}
 }
 
-func (a *adapter) Reload(inst *core.Instance, cfg []byte) error {
+func (a *Adapter) Reload(inst *core.Instance, cfg []byte) error {
 	if err := a.Stop(inst); err != nil {
 		return err
 	}
 	return a.Start(inst, cfg)
 }
 
-func (a *adapter) Version() string { return xcore.Version() }
+func (a *Adapter) Version() string { return xcore.Version() }
 
-func (a *adapter) Ping(ctx context.Context, cfg []byte, outboundTag, testURL string, timeout time.Duration) (int64, error) {
+func (a *Adapter) Ping(ctx context.Context, cfg []byte, outboundTag, testURL string, timeout time.Duration) (int64, error) {
 	srv, err := tempInstance(cfg)
 	if err != nil {
 		return 0, err
@@ -76,7 +76,7 @@ func (a *adapter) Ping(ctx context.Context, cfg []byte, outboundTag, testURL str
 	return time.Since(start).Milliseconds(), nil
 }
 
-func (a *adapter) SpeedTest(ctx context.Context, cfg []byte, outboundTag, downloadURL string, duration time.Duration) (float64, error) {
+func (a *Adapter) SpeedTest(ctx context.Context, cfg []byte, outboundTag, downloadURL string, duration time.Duration) (float64, error) {
 	srv, err := tempInstance(cfg)
 	if err != nil {
 		return 0, err
