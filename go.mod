@@ -7,6 +7,7 @@ require (
 	github.com/metacubex/mihomo v1.19.33
 	github.com/spf13/cobra v1.10.2
 	github.com/xtls/xray-core v1.260327.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
